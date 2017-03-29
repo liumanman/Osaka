@@ -7,14 +7,15 @@ using ServiceFramwork.Server.ServiceDescription;
 
 namespace Test
 {
-    [Service]
+    [Service(name:"UserService")]
     public interface IUserService
     {
-        [Operation(urlPatterns:new string[] {"user/v2/{userid}/hello"})]
+        [Operation]
         string SayHello();
         [Operation]
         string Jump();
     }
+
     public class UserService : IUserService
     {
         public string Jump()

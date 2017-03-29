@@ -8,12 +8,12 @@ namespace ServiceFramwork.Server.ServiceDescription
     public class OperationAttribute : Attribute
     {
         public string Name { get; private set; }
-        public string[] URLPatterns { get; private set; }
+        //public string[] URLPatterns { get; private set; }
 
-        public OperationAttribute(string name=null, string[] urlPatterns = null)
+        public OperationAttribute(string name=null)
         {
             Name = name;
-            URLPatterns = urlPatterns;
+            //URLPatterns = urlPatterns;
         }
     }
 }

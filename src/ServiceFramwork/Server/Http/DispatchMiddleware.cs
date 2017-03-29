@@ -2,9 +2,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 using ServiceFramwork.Server.ServiceDescription;
+using System.Text;
 
 namespace ServiceFramwork.Server.Http
 {
@@ -18,43 +20,84 @@ namespace ServiceFramwork.Server.Http
         private RequestDelegate _next;
         //private string _templates;
         private IServiceManager _serviceManager;
-        private IServicePathManager _pathManager;
-        public DispatchMiddleware(RequestDelegate next, IServiceManager serviceManager, IServicePathManager pathManager)
+        private string _urlPattern;
+        //private IServicePathManager _pathManager;
+        public DispatchMiddleware(RequestDelegate next, IServiceManager serviceManager, string urlPattern)
         {
             _next = next;
             //_templates = templates;
             _serviceManager = serviceManager;
-            _pathManager = pathManager;
+            _urlPattern = urlPattern;
+            //_pathManager = pathManager;
         }
+
+        private static bool TryParserUrl(string url, string urlPattern, out string serviceName, out string operationName)
+        {
+            serviceName = null;
+            operationName = null;
+
+            url = url.ToLower();
+            urlPattern = urlPattern.ToLower();
+
+            string pattern = Regex.Replace(urlPattern, @"{(\w+)}", @"(?<$1>\w+)");
+            var m = Regex.Match(url, pattern);
+            if (m == Match.Empty) return false;
+            serviceName = m.Groups[HEADER_KEY_SERVICE]?.Value;
+            operationName = m.Groups[HEADER_KEY_OPERATION]?.Value;
+            return !String.IsNullOrEmpty(serviceName) && !String.IsNullOrEmpty(operationName);
+        }
+
+        //public async Task Invoke(HttpContext context)
+        //{
+        //    OperationDescriptor operation;
+        //    OperationDescriptor[] found = _serviceManager.MatchWithPath(context.Request.Path, _pathManager);
+        //    if (found.Length > 1)
+        //    {
+        //        throw new Exception($"Multiple operations found by URL:{context.Request.Path}");
+        //    }
+
+        //    if (found.Length == 1)
+        //    {
+        //        operation = found[0];
+        //    }
+        //    else //found.length == 0
+        //    {
+        //        operation = GetFromHeader(context);
+        //        if (operation == default(OperationDescriptor))
+        //        {
+        //            operation = GetFromQuery(context);
+        //            if (operation == default(OperationDescriptor))
+        //            {
+        //                throw new Exception($"Can't find operation by URL:{context.Request.Path}");
+        //            }
+        //        }
+        //    }
+
+        //    context.SetDispatchOperation(operation);
+        //    await _next(context);
+        //}
 
         public async Task Invoke(HttpContext context)
         {
-            OperationDescriptor operation;
-            OperationDescriptor[] found = _serviceManager.MatchWithPath(context.Request.Path, _pathManager);
-            if (found.Length > 1)
+            string serviceName, operationName;
+            if (TryParserUrl(context.Request.Path, _urlPattern, out serviceName, out operationName))
             {
-                throw new Exception($"Multiple operations found by URL:{context.Request.Path}");
-            }
-
-            if (found.Length == 1)
-            {
-                operation = found[0];
-            }
-            else //found.length == 0
-            {
-                operation = GetFromHeader(context);
-                if (operation == default(OperationDescriptor))
+                var od = _serviceManager.GetOperation(serviceName, operationName);
+                if (od == default(OperationDescriptor))
                 {
-                    operation = GetFromQuery(context);
-                    if (operation == default(OperationDescriptor))
-                    {
-                        throw new Exception($"Can't find operation by URL:{context.Request.Path}");
-                    }
+                    await _next(context);
+                }
+                else
+                {
+                    var b = Encoding.UTF8.GetBytes($"service:{od.Service.Name}, operation:{od.Name}");
+
+                    context.Response.Body.Write(b, 0, b.Length);
                 }
             }
-
-            context.SetDispatchOperation(operation);
-            await _next(context);
+            else
+            {
+                await _next(context);
+            }
         }
 
         private OperationDescriptor GetFrom<T>(T keyValueCol, string key_service, string key_operation)

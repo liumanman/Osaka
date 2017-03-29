@@ -17,7 +17,7 @@ namespace Test
                 .UseKestrel()
                 .Configure(app => app.UseMiddleware<DispatchMiddleware>(
                     new DefaultServiceManager(new Type[] { typeof(UserService) })
-                    , new DefaultServicePathManager("/api/ozzo/rma/")))
+                    ,"/test/abc/v2/{service}/{operation}"))
                 .Build();
 
             host.Run();

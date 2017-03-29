@@ -47,14 +47,14 @@ namespace ServiceFramwork.Server.Http
 
         public OperationDescriptor GetOperation(string serviceName, string operationName)
         {
-            var od = _collection.Where(service => service.Name.Equals(serviceName))?.First().Operations
-                      .Where(operation => operation.Name.Equals(operationName))?.First();
+            var od = _collection.Where(service => service.Name.Equals(serviceName, StringComparison.OrdinalIgnoreCase)).SingleOrDefault()?.Operations
+                      .Where(operation => operation.Name.Equals(operationName, StringComparison.OrdinalIgnoreCase)).SingleOrDefault();
             return od;
         }
 
-        public OperationDescriptor[] MatchWithPath(string url, IServicePathManager pathManager)
-        {
-            return _allOperations.Where(o => o.URLPatterns.Any(p => pathManager.IsMatch(url, p))).ToArray();
-        }
+        //public OperationDescriptor[] MatchWithPath(string url, IServicePathManager pathManager)
+        //{
+        //    return _allOperations.Where(o => o.URLPatterns.Any(p => pathManager.IsMatch(url, p))).ToArray();
+        //}
     }
 }

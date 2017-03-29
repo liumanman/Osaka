@@ -10,7 +10,6 @@ namespace ServiceFramwork.Server.Http
             _basePath = basePath;
         }
 
-
         public bool IsMatch(string path, string pattern)
         {
             string fullPattern = pattern.StartsWith("/") ? pattern : _basePath + pattern;
