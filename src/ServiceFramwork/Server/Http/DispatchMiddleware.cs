@@ -100,6 +100,20 @@ namespace ServiceFramwork.Server.Http
             }
         }
 
+        private OperationDescriptor FindOperation(HttpContext context)
+        {
+            string serviceName, operationName;
+            if (TryParserUrl(context.Request.Path, _urlPattern, out serviceName, out operationName))
+            {
+                return _serviceManager.GetOperation(serviceName, operationName);
+            }
+            else
+            {
+                return default(OperationDescriptor);
+            }
+
+        }
+
         private OperationDescriptor GetFrom<T>(T keyValueCol, string key_service, string key_operation)
             where T : IEnumerable<KeyValuePair<string, StringValues>>
         {
