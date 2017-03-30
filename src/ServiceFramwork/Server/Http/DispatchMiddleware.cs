@@ -79,25 +79,33 @@ namespace ServiceFramwork.Server.Http
 
         public async Task Invoke(HttpContext context)
         {
-            string serviceName, operationName;
-            if (TryParserUrl(context.Request.Path, _urlPattern, out serviceName, out operationName))
+            if (!context.Request.Method.Equals("Post"))
             {
-                var od = _serviceManager.GetOperation(serviceName, operationName);
-                if (od == default(OperationDescriptor))
-                {
-                    await _next(context);
-                }
-                else
-                {
-                    var b = Encoding.UTF8.GetBytes($"service:{od.Service.Name}, operation:{od.Name}");
+                await Next(context);
+                return;
+            }
 
-                    context.Response.Body.Write(b, 0, b.Length);
-                }
-            }
-            else
+            string serviceName, operationName;
+            if (!TryParserUrl(context.Request.Path, _urlPattern, out serviceName, out operationName))
             {
-                await _next(context);
+                await Next(context);
+                return;
             }
+
+            var od = _serviceManager.GetOperation(serviceName, operationName);
+            if (od == default(OperationDescriptor))
+            {
+                await Next(context);
+                return;
+            }
+
+            var b = Encoding.UTF8.GetBytes($"service:{od.Service.Name}, operation:{od.Name}");
+            context.Response.Body.Write(b, 0, b.Length);
+        }
+
+        private async Task Next(HttpContext context)
+        {
+            await _next(context);
         }
 
         private OperationDescriptor GetFrom<T>(T keyValueCol, string key_service, string key_operation)
