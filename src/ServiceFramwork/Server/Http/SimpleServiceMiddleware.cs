@@ -5,12 +5,15 @@ using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
-using ServiceFramwork.Server.ServiceDescription;
 using System.Text;
+using System.IO;
+
+using ServiceFramwork.Server.ServiceDescription;
+using ServiceFramwork.Serialization;
 
 namespace ServiceFramwork.Server.Http
 {
-    public class DispatchMiddleware
+    public class SimpleServiceMiddleware
     {
         private const string QUERY_KEY_SERVICE = "s";
         private const string QUERY_KEY_OPERATION = "o";
@@ -18,17 +21,15 @@ namespace ServiceFramwork.Server.Http
         private const string HEADER_KEY_OPERATION = "operation";
 
         private RequestDelegate _next;
-        //private string _templates;
         private IServiceManager _serviceManager;
         private string _urlPattern;
-        //private IServicePathManager _pathManager;
-        public DispatchMiddleware(RequestDelegate next, IServiceManager serviceManager, string urlPattern)
+        private ISerializer _serializer;
+        public SimpleServiceMiddleware(RequestDelegate next, IServiceManager serviceManager, string urlPattern, ISerializer serializer = null)
         {
             _next = next;
-            //_templates = templates;
             _serviceManager = serviceManager;
             _urlPattern = urlPattern;
-            //_pathManager = pathManager;
+            _serializer = serializer == null ? new JsonSerializer() : serializer;
         }
 
         private static bool TryParserUrl(string url, string urlPattern, out string serviceName, out string operationName)
@@ -47,59 +48,28 @@ namespace ServiceFramwork.Server.Http
             return !String.IsNullOrEmpty(serviceName) && !String.IsNullOrEmpty(operationName);
         }
 
-        //public async Task Invoke(HttpContext context)
-        //{
-        //    OperationDescriptor operation;
-        //    OperationDescriptor[] found = _serviceManager.MatchWithPath(context.Request.Path, _pathManager);
-        //    if (found.Length > 1)
-        //    {
-        //        throw new Exception($"Multiple operations found by URL:{context.Request.Path}");
-        //    }
-
-        //    if (found.Length == 1)
-        //    {
-        //        operation = found[0];
-        //    }
-        //    else //found.length == 0
-        //    {
-        //        operation = GetFromHeader(context);
-        //        if (operation == default(OperationDescriptor))
-        //        {
-        //            operation = GetFromQuery(context);
-        //            if (operation == default(OperationDescriptor))
-        //            {
-        //                throw new Exception($"Can't find operation by URL:{context.Request.Path}");
-        //            }
-        //        }
-        //    }
-
-        //    context.SetDispatchOperation(operation);
-        //    await _next(context);
-        //}
-
         public async Task Invoke(HttpContext context)
         {
-            if (!context.Request.Method.Equals("Post"))
+            if (!context.Request.Method.Equals("Post", StringComparison.OrdinalIgnoreCase))
             {
                 await Next(context);
                 return;
             }
 
-            string serviceName, operationName;
-            if (!TryParserUrl(context.Request.Path, _urlPattern, out serviceName, out operationName))
-            {
-                await Next(context);
-                return;
-            }
-
-            var od = _serviceManager.GetOperation(serviceName, operationName);
+            var od = this.FindOperation(context);
             if (od == default(OperationDescriptor))
             {
                 await Next(context);
                 return;
             }
 
-            var b = Encoding.UTF8.GetBytes($"service:{od.Service.Name}, operation:{od.Name}");
+            object[] paramsValues = this.ReadParams(context, od);
+
+            var service = Activator.CreateInstance(od.Service.ServiceType);
+            var r = od.Operation.Invoke(service, paramsValues);
+
+            var b = _serializer.Serialize(r);
+
             context.Response.Body.Write(b, 0, b.Length);
         }
 
@@ -120,6 +90,20 @@ namespace ServiceFramwork.Server.Http
                 return default(OperationDescriptor);
             }
 
+        }
+
+
+        private object[] ReadParams(HttpContext context, OperationDescriptor descriptor)
+        {
+            byte[] parmasData;
+            using (MemoryStream ms = new MemoryStream())
+            {
+                context.Request.Body.CopyTo(ms);
+                parmasData = ms.ToArray();
+            }
+
+            var paramsHolder = _serializer.Deserialize(descriptor.ParamsSerializationType, parmasData);
+            return descriptor.UnboxParameterValues(paramsHolder);
         }
 
         private OperationDescriptor GetFrom<T>(T keyValueCol, string key_service, string key_operation)

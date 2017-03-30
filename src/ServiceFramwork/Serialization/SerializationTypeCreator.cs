@@ -1,37 +1,45 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 
-namespace ServiceFramwork.Server.ServiceDescription
+namespace ServiceFramwork.Serialization
 {
-    public class ParamsTypeCreator
+    public class SerializationTypeCreator
     {
         private static ModuleBuilder ModuleBuilder;
-        static ParamsTypeCreator()
+        static SerializationTypeCreator()
         {
             var assemblyName = new AssemblyName("ParamsTypeAssembly");
             var assembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
             ModuleBuilder = assembly.DefineDynamicModule(assemblyName.Name); 
         }
 
-        private OperationDescriptor _operation;
+        private Dictionary<string, Type> _subTypes;
+        private string _typeName;
         private TypeBuilder _typeBuilder;
-        public ParamsTypeCreator(OperationDescriptor operation)
+        public SerializationTypeCreator(string typeName, Dictionary<string, Type> subTypes)
         {
-            _operation = operation;
+            _subTypes = subTypes;
+            _typeName = typeName;
         }
+
+        private Dictionary<string, Type> TYPE_CACHE = new Dictionary<string, Type>();
 
         public Type Create()
         {
-            _typeBuilder = ModuleBuilder.DefineType($"{_operation.Service.Name}_{_operation.Name}"
-                , TypeAttributes.Public);
-            CreateSerializableAttr();
-            foreach(var p in _operation.Parameters)
+            if (!TYPE_CACHE.ContainsKey(_typeName))
             {
-                CreateProperty(p.Name, p.ParameterType);
+                _typeBuilder = ModuleBuilder.DefineType(_typeName, TypeAttributes.Public);
+                CreateSerializableAttr();
+                foreach(var t in _subTypes)
+                {
+                    CreateProperty(t.Key, t.Value); 
+                }
+                TYPE_CACHE[_typeName] = _typeBuilder.CreateTypeInfo().AsType();
             }
 
-            return _typeBuilder.AsType();
+            return TYPE_CACHE[_typeName];
         }
 
         private void CreateSerializableAttr()
@@ -40,6 +48,7 @@ namespace ServiceFramwork.Server.ServiceDescription
             var attrBuilder = new CustomAttributeBuilder(ctorInfo, new object[] { });
             _typeBuilder.SetCustomAttribute(attrBuilder);
         }
+
 
         private void CreateProperty(string propertyName, Type propertyType)
         {

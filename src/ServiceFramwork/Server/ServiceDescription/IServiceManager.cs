@@ -1,6 +1,5 @@
-﻿using ServiceFramwork.Server.ServiceDescription;
-
-namespace ServiceFramwork.Server.Http
+﻿
+namespace ServiceFramwork.Server.ServiceDescription
 {
     public interface IServiceManager
     {

@@ -5,7 +5,7 @@ using System.Linq;
 
 using ServiceFramwork.Server.ServiceDescription;
 
-namespace ServiceFramwork.Server.Http
+namespace ServiceFramwork.Server.ServiceDescription
 {
     public class DefaultServiceManager : IServiceManager
     {
@@ -38,8 +38,6 @@ namespace ServiceFramwork.Server.Http
             }
         }
 
-
-
         public OperationDescriptor[] GetAllOperations()
         {
             return _allOperations.ToArray();
@@ -51,10 +49,5 @@ namespace ServiceFramwork.Server.Http
                       .Where(operation => operation.Name.Equals(operationName, StringComparison.OrdinalIgnoreCase)).SingleOrDefault();
             return od;
         }
-
-        //public OperationDescriptor[] MatchWithPath(string url, IServicePathManager pathManager)
-        //{
-        //    return _allOperations.Where(o => o.URLPatterns.Any(p => pathManager.IsMatch(url, p))).ToArray();
-        //}
     }
 }
