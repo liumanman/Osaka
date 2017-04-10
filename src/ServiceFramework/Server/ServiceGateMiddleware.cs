@@ -1,19 +1,20 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
-using System.Text;
 using System.IO;
 
-using ServiceFramwork.Server.ServiceDescription;
-using ServiceFramwork.Serialization;
 
-namespace ServiceFramwork.Server.Http
+using ServiceFramework.Serialization;
+using ServiceFramework.ServiceDescription;
+
+namespace ServiceFramework.Server
 {
-    public class SimpleServiceMiddleware
+    public class ServiceGateMiddleware
     {
         private const string QUERY_KEY_SERVICE = "s";
         private const string QUERY_KEY_OPERATION = "o";
@@ -24,7 +25,7 @@ namespace ServiceFramwork.Server.Http
         private IServiceManager _serviceManager;
         private string _urlPattern;
         private ISerializer _serializer;
-        public SimpleServiceMiddleware(RequestDelegate next, IServiceManager serviceManager, string urlPattern, ISerializer serializer = null)
+        public ServiceGateMiddleware(RequestDelegate next, IServiceManager serviceManager, string urlPattern, ISerializer serializer = null)
         {
             _next = next;
             _serviceManager = serviceManager;
@@ -65,12 +66,59 @@ namespace ServiceFramwork.Server.Http
 
             object[] paramsValues = this.ReadParams(context, od);
 
-            var service = Activator.CreateInstance(od.Service.ServiceType);
-            var r = od.Operation.Invoke(service, paramsValues);
+            var service = Activator.CreateInstance(od.Service.ImplType);
+            var r = od.OperationInfo.Invoke(service, paramsValues);
 
-            var b = _serializer.Serialize(r);
+            await WriteResponseStream(od,context.Response.Body, r);
+        }
 
-            context.Response.Body.Write(b, 0, b.Length);
+        private async Task WriteResponseStream(OperationDescriptor operationDescriptor, Stream stream, object content)
+        {
+            if (operationDescriptor.IsIterator)
+            {
+                await WriteResponseStreamWithBuffer(stream,  content as IEnumerable);
+            }
+            else
+            {
+                var b = _serializer.Serialize(content);
+                await stream.WriteAsync(b, 0, b.Length);
+            }
+
+        }
+
+        private async Task WriteResponseStreamWithBuffer(Stream stream, IEnumerable content)
+        {
+            int maxBufferSize = 10 * 1024 ;
+            List<byte[]> buffer = new List<byte[]>();
+
+            int currentSize = 0;
+            foreach(object i in content as IEnumerable)
+            {
+                var b_data = _serializer.Serialize(i);
+                var b_len = BitConverter.GetBytes(b_data.Length);
+
+                if(currentSize > 0 && (currentSize + b_data.Length + b_len.Length) > maxBufferSize)
+                {
+                    foreach(var j in buffer)
+                    {
+                        await stream.WriteAsync(j, 0, j.Length);
+
+                    }
+                    buffer.Clear();
+                    currentSize = 0;
+                }
+
+                buffer.Add(b_len);
+                buffer.Add(b_data);
+                currentSize += b_len.Length + b_data.Length;
+
+                //Console.WriteLine(currentSize);
+            }
+
+            foreach(var j in buffer)
+            {
+                await stream.WriteAsync(j, 0, j.Length);
+            }
         }
 
         private async Task Next(HttpContext context)

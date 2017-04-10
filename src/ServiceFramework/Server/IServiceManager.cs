@@ -1,5 +1,7 @@
 ﻿
-namespace ServiceFramwork.Server.ServiceDescription
+using ServiceFramework.ServiceDescription;
+
+namespace ServiceFramework.Server
 {
     public interface IServiceManager
     {

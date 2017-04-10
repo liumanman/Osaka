@@ -2,8 +2,9 @@
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
+using ServiceFramework.ServiceDescription;
 
-namespace ServiceFramwork.Serialization
+namespace ServiceFramework.Serialization
 {
     public class SerializationTypeCreator
     {
@@ -12,16 +13,23 @@ namespace ServiceFramwork.Serialization
         {
             var assemblyName = new AssemblyName("ParamsTypeAssembly");
             var assembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
-            ModuleBuilder = assembly.DefineDynamicModule(assemblyName.Name); 
+            ModuleBuilder = assembly.DefineDynamicModule(assemblyName.Name);
         }
 
-        private Dictionary<string, Type> _subTypes;
+        //private Dictionary<string, Type> _subTypes;
         private string _typeName;
         private TypeBuilder _typeBuilder;
-        public SerializationTypeCreator(string typeName, Dictionary<string, Type> subTypes)
+        //public SerializationTypeCreator(string typeName, Dictionary<string, Type> subTypes)
+        //{
+        //    _subTypes = subTypes;
+        //    _typeName = typeName;
+        //}
+
+        private OperationDescriptor _operationDescriptor;
+        public SerializationTypeCreator(OperationDescriptor operationDescriptor)
         {
-            _subTypes = subTypes;
-            _typeName = typeName;
+            _operationDescriptor = operationDescriptor;
+            _typeName = $"{operationDescriptor.Service.Name}_{operationDescriptor.OperationInfo.Name}";
         }
 
         private Dictionary<string, Type> TYPE_CACHE = new Dictionary<string, Type>();
@@ -30,16 +38,30 @@ namespace ServiceFramwork.Serialization
         {
             if (!TYPE_CACHE.ContainsKey(_typeName))
             {
-                _typeBuilder = ModuleBuilder.DefineType(_typeName, TypeAttributes.Public);
-                CreateSerializableAttr();
-                foreach(var t in _subTypes)
+                lock (this)
                 {
-                    CreateProperty(t.Key, t.Value); 
+                    if (!TYPE_CACHE.ContainsKey(_typeName))
+                    {
+                        TYPE_CACHE[_typeName] = CreateNew();
+                    }
                 }
-                TYPE_CACHE[_typeName] = _typeBuilder.CreateTypeInfo().AsType();
             }
-
             return TYPE_CACHE[_typeName];
+        }
+
+        private Type CreateNew()
+        {
+            _typeBuilder = ModuleBuilder.DefineType(_typeName, TypeAttributes.Public);
+            CreateSerializableAttr();
+            //foreach (var t in _subTypes)
+            //{
+            //    CreateProperty(t.Key, t.Value);
+            //}
+            foreach(var p in _operationDescriptor.Parameters)
+            {
+                CreateProperty(p.Name, p.ParameterType);
+            }
+            return _typeBuilder.CreateTypeInfo().AsType();
         }
 
         private void CreateSerializableAttr()

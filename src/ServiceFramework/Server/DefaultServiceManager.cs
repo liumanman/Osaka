@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Runtime.Loader;
 using System.Linq;
 
-using ServiceFramwork.Server.ServiceDescription;
+using ServiceFramework.ServiceDescription;
 
-namespace ServiceFramwork.Server.ServiceDescription
+namespace ServiceFramework.Server
 {
     public class DefaultServiceManager : IServiceManager
     {
@@ -29,7 +29,7 @@ namespace ServiceFramwork.Server.ServiceDescription
             _allOperations = new List<OperationDescriptor>();
             foreach (var type in types)
             {
-                ServiceDescriptor[] sdCol = ServiceDescriptor.FindServices(type);
+                ServiceDescriptor[] sdCol = ServiceFinder.FindServices(type);
                 foreach(var sd in sdCol)
                 {
                     _collection.Add(sd);

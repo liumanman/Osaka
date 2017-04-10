@@ -3,17 +3,16 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace ServiceFramwork.Server.ServiceDescription
+namespace ServiceFramework.ServiceDescription
 {
     public class OperationAttribute : Attribute
     {
         public string Name { get; private set; }
-        //public string[] URLPatterns { get; private set; }
+        public bool IsIterator { get; private set; }
 
-        public OperationAttribute(string name=null)
+        public OperationAttribute(string name=null, bool isIterator=false)
         {
             Name = name;
-            //URLPatterns = urlPatterns;
         }
     }
 }

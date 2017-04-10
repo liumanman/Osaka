@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace ServiceFramwork.Serialization
+namespace ServiceFramework.Serialization
 {
     public interface ISerializer
     {

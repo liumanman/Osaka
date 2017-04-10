@@ -3,14 +3,14 @@ using System.Collections.Generic;
 using System.Text;
 using Newtonsoft.Json;
 
-namespace ServiceFramwork.Serialization
+namespace ServiceFramework.Serialization
 {
     public class JsonSerializer : ISerializer
     {
         Encoding _encoding;
         public JsonSerializer(Encoding encode = null)
         {
-            _encoding = encode == null ?  Encoding.UTF8 : encode;
+            _encoding = encode == null ? Encoding.UTF8 : encode;
         }
         public object Deserialize(Type type, byte[] data)
         {

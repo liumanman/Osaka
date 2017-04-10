@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace ServiceFramwork.Server.ServiceDescription
+namespace ServiceFramework.ServiceDescription
 {
     public class ServiceAttribute : Attribute
     {

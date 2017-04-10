@@ -6,10 +6,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Builder;
 using System.Text;
 
-using ServiceFramwork.Server.Http;
-using ServiceFramwork.Serialization;
-using ServiceFramwork.Server.ServiceDescription;
-
+using ServiceFramework.Server;
+using ServiceFramework.Serialization;
 using ConsoleApp2;
 
 namespace Test
@@ -20,7 +18,7 @@ namespace Test
         {
             var host = new WebHostBuilder()
                 .UseKestrel()
-                .Configure(app => app.UseMiddleware<SimpleServiceMiddleware>(
+                .Configure(app => app.UseMiddleware<ServiceGateMiddleware>(
                     new DefaultServiceManager(new Type[] { typeof(UserService) })
                     , "/test/abc/v2/{service}/{operation}"))
                 .Build();
@@ -47,14 +45,14 @@ namespace Test
             string v4 = Encoding.UTF8.GetString(data);
         }
 
-        public static void Test2()
-        {
-            var creator = new SerializationTypeCreator("test", new Dictionary<string, Type>{
-                {"a1", typeof(int) },
-                {"a2", typeof(string)},
-            });
-            var t = creator.Create();
-        }
+        //public static void Test2()
+        //{
+        //    var creator = new SerializationTypeCreator("test", new Dictionary<string, Type>{
+        //        {"a1", typeof(int) },
+        //        {"a2", typeof(string)},
+        //    });
+        //    var t = creator.Create();
+        //}
 
         public static void Test3()
         {
