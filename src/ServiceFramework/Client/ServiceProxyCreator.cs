@@ -50,10 +50,23 @@ namespace ServiceFramework.Client
 
             CreateStaticMembers();
 
-            foreach(var m in _serviceDescriptor.Operations)
+            foreach(var m in _serviceDescriptor.SchemaType.GetMethods())
             {
-                CreateMethodImpl(_serviceDescriptor.SchemaType.Name, m);
+                var od = _serviceDescriptor.Operations.Where(o => o.OperationInfo.Name == m.Name).SingleOrDefault();
+                if (od == default(OperationDescriptor))
+                {
+                    CreateMethodImpl(_serviceDescriptor.SchemaType.Name, m);
+                }
+                else
+                {
+                    CreateMethodImpl(_serviceDescriptor.SchemaType.Name, od);
+                }
             }
+
+            //foreach(var m in _serviceDescriptor.Operations)
+            //{
+            //    CreateMethodImpl(_serviceDescriptor.SchemaType.Name, m);
+            //}
 
             var proxyType = _typeBuilder.CreateTypeInfo().AsType();
             return SetServiceDescriptor(proxyType);
@@ -76,7 +89,7 @@ namespace ServiceFramework.Client
         private void CreateMethodImpl(string interfaceName, OperationDescriptor operationDescriptor)
         {
             MethodBuilder mb = _typeBuilder.DefineMethod(
-                operationDescriptor.Name,
+                operationDescriptor.OperationInfo.Name,
                 MethodAttributes.Public | MethodAttributes.Virtual,
                 operationDescriptor.ReturnType,
                 (from p in operationDescriptor.Parameters
@@ -129,6 +142,23 @@ namespace ServiceFramework.Client
 
             ilc.Emit(OpCodes.Ret);
             _typeBuilder.DefineMethodOverride(mb, operationDescriptor.OperationInfo);
+        }
+
+        private void CreateMethodImpl(string interfaceName, MethodInfo methodDeclaration)
+        {
+            MethodBuilder mb = _typeBuilder.DefineMethod(
+                methodDeclaration.Name,
+                MethodAttributes.Public | MethodAttributes.Virtual,
+                methodDeclaration.ReturnType,
+                (from p in methodDeclaration.GetParameters()
+                 select p.ParameterType).ToArray());
+
+            var ilc = mb.GetILGenerator();
+            ilc.Emit(OpCodes.Nop);
+            ilc.Emit(OpCodes.Ldstr, $"The method {interfaceName}.{methodDeclaration.Name} doesn't have Operation attribute.");
+            ilc.Emit(OpCodes.Newobj, typeof(Exception).GetConstructor(new Type[] { typeof(string) }));
+            ilc.Emit(OpCodes.Throw);
+            _typeBuilder.DefineMethodOverride(mb, methodDeclaration);
         }
 
         public static object ServiceInvoke(string operationName, ServiceDescriptor serviceDescriptor, object[] @params)

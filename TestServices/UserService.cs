@@ -25,7 +25,7 @@ namespace Test
         [Operation]
         TestEntity GetEntity(int number, TestEntity entity);
 
-        [Operation(isIterator:true)]
+        [Operation(isIterator: true)]
         IEnumerable<TestEntity> GetEntityCollection(int number);
 
     }
