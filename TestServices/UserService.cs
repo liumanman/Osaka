@@ -11,22 +11,28 @@ namespace Test
     [Service(name:"UserService")]
     public interface IUserService
     {
-        [Operation]
-        string SayHello(string a1, int a2, string[] a3, List<int> a4);
-        [Operation]
-        string Jump(string a1, int a2);
-        [Operation]
-        List<string> HugeData(int num);
-        [Operation(isIterator:true)]
-        IEnumerable<string> HugeData2(int num);
-        [Operation(isIterator:true)]
-        IEnumerable<string> Test(int num);
+        //[Operation]
+        //string SayHello(string a1, int a2, string[] a3, List<int> a4);
+        //[Operation]
+        //string Jump(string a1, int a2);
+        //[Operation(name:"Jump2")]
+        //int Jump(int a1, int a2);
+        //[Operation]
+        //List<string> HugeData(int num);
+        //[Operation(isIterator:true)]
+        //IEnumerable<string> HugeData2(int num);
+        //[Operation(isIterator:true)]
+        //IEnumerable<string> Test(int num);
 
-        [Operation]
-        TestEntity GetEntity(int number, TestEntity entity);
+        //[Operation]
+        //TestEntity GetEntity(int number, TestEntity entity);
 
-        [Operation(isIterator: true)]
-        IEnumerable<TestEntity> GetEntityCollection(int number);
+        //[Operation(isIterator: true)]
+        //IEnumerable<TestEntity> GetEntityCollection(int number);
+        [Operation(name:"Test_2")]
+        DateTime Test2(DateTime a1);
+        [Operation]
+        string Test2(int a1);
 
     }
 
@@ -129,6 +135,21 @@ namespace Test
                 };
 
             }
+        }
+
+        public int Jump(int a1, int a2)
+        {
+            return a1 + a2;
+        }
+
+        public DateTime Test2(DateTime a1)
+        {
+            return a1;
+        }
+
+        public string Test2(int a1)
+        {
+            return "absc";
         }
     }
 

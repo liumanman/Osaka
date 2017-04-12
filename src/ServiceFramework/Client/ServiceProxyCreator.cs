@@ -12,14 +12,16 @@ namespace ServiceFramework.Client
     public class ServiceProxyCreator
     {
         private static ModuleBuilder ModuleBuilder;
+        private static MethodInfo Invoker;
         static ServiceProxyCreator()
         {
             var assemblyName = new AssemblyName("ServiceProxyAssembly");
             var assembly = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
             ModuleBuilder = assembly.DefineDynamicModule(assemblyName.Name);
+            Invoker = typeof(ServiceProxyCreator).GetTypeInfo().DeclaredMethods.Where(m => m.Name == "ServiceInvoke").Single();
         }
 
-        private Type Cache;
+        private static Dictionary<Type,Type> CACHE = new Dictionary<Type, Type>();
 
         private ServiceDescriptor _serviceDescriptor;
         private TypeBuilder _typeBuilder;
@@ -29,15 +31,22 @@ namespace ServiceFramework.Client
         {
             _serviceDescriptor = new ServiceDescriptor(serviceSchema);
             
+            
         }
 
         public Type Create()
         {
-            if (Cache == null)
+            if (!CACHE.ContainsKey(_serviceDescriptor.SchemaType))
             {
-                Cache = CreateNew();
+                lock (CACHE)
+                {
+                    if (!CACHE.ContainsKey(_serviceDescriptor.SchemaType))
+                    {
+                        CACHE[_serviceDescriptor.SchemaType] = CreateNew();
+                    }
+                }
             }
-            return Cache;
+            return CACHE[_serviceDescriptor.SchemaType];
         }
 
         private Type CreateNew()
@@ -52,7 +61,8 @@ namespace ServiceFramework.Client
 
             foreach(var m in _serviceDescriptor.SchemaType.GetMethods())
             {
-                var od = _serviceDescriptor.Operations.Where(o => o.OperationInfo.Name == m.Name).SingleOrDefault();
+                //var od = _serviceDescriptor.Operations.Where(o => o.OperationInfo.Name == m.Name).SingleOrDefault();
+                var od = _serviceDescriptor.Operations.GetByMethodInfo(m.Name, m.GetParameters().Select(p => p.ParameterType).ToArray());
                 if (od == default(OperationDescriptor))
                 {
                     CreateMethodImpl(_serviceDescriptor.SchemaType.Name, m);
@@ -67,7 +77,6 @@ namespace ServiceFramework.Client
             //{
             //    CreateMethodImpl(_serviceDescriptor.SchemaType.Name, m);
             //}
-
             var proxyType = _typeBuilder.CreateTypeInfo().AsType();
             return SetServiceDescriptor(proxyType);
         }
@@ -89,24 +98,25 @@ namespace ServiceFramework.Client
         private void CreateMethodImpl(string interfaceName, OperationDescriptor operationDescriptor)
         {
             MethodBuilder mb = _typeBuilder.DefineMethod(
-                operationDescriptor.OperationInfo.Name,
+                operationDescriptor.MethodInfo.Name,
                 MethodAttributes.Public | MethodAttributes.Virtual,
                 operationDescriptor.ReturnType,
                 (from p in operationDescriptor.Parameters
                  select p.ParameterType).ToArray());
 
             var ilc = mb.GetILGenerator();
-            ilc.DeclareLocal(typeof(object[]));
-            ilc.DeclareLocal(typeof(object));
+            var localParams = ilc.DeclareLocal(typeof(object[]));
+            //var localReturn = ilc.DeclareLocal(typeof(object));
+            var localReturn = ilc.DeclareLocal(operationDescriptor.ReturnType);
             var argTypes = operationDescriptor.Parameters;
 
             ilc.Emit(OpCodes.Nop);
             ilc.Emit(OpCodes.Ldc_I4, argTypes.Length);
             ilc.Emit(OpCodes.Newarr, typeof(object));
-            ilc.Emit(OpCodes.Dup);
 
             for (int i = 0; i < argTypes.Length; i++)
             {
+                ilc.Emit(OpCodes.Dup);
                 ilc.Emit(OpCodes.Ldc_I4, i);
                 ilc.Emit(OpCodes.Ldarg, i + 1);
                 Type argType = argTypes[i].ParameterType;
@@ -115,33 +125,31 @@ namespace ServiceFramework.Client
                     ilc.Emit(OpCodes.Box, argType);
                 }
                 ilc.Emit(OpCodes.Stelem_Ref);
-
-                if (i < argTypes.Length - 1)
-                {
-                    ilc.Emit(OpCodes.Dup);
-                }
             }
-            ilc.Emit(OpCodes.Stloc_0);
+            ilc.Emit(OpCodes.Stloc, localParams);
 
-            //ilc.Emit(OpCodes.Ldstr, interfaceName);
-            //ilc.Emit(OpCodes.Ldstr, operationDescriptor.Name);
-            //ilc.Emit(OpCodes.Ldarg_1);
-            ilc.Emit(OpCodes.Ldstr, operationDescriptor.Name);
             ilc.Emit(OpCodes.Ldsfld, _ServiceDescriptorFiledBuilder);
-            ilc.Emit(OpCodes.Ldloc_0);
+            ilc.Emit(OpCodes.Ldstr, operationDescriptor.Name);
+            ilc.Emit(OpCodes.Ldloc, localParams);
 
+            ilc.Emit(OpCodes.Call, Invoker);
+            if (operationDescriptor.ReturnType.GetTypeInfo().IsValueType)
+            {
+                ilc.Emit(OpCodes.Unbox_Any, operationDescriptor.ReturnType);
+            }
+            ilc.Emit(OpCodes.Stloc, localReturn);
 
-            //////////////////////////
-            var destination = typeof(ServiceProxyCreator).GetTypeInfo().DeclaredMethods.Where(m=>m.Name == "ServiceInvoke").Single();
-            
+            ilc.Emit(OpCodes.Nop);
 
-            //ilc.EmitCall(OpCodes.Call, destination, new Type[] { typeof(string), typeof(string), typeof(object[]) });
-            ilc.Emit(OpCodes.Call, destination);
-            ilc.Emit(OpCodes.Stloc_1);
-            ilc.Emit(OpCodes.Ldloc_1);
+            ilc.Emit(OpCodes.Ldloc, localReturn);
+
+            //ilc.Emit(OpCodes.Ldc_I4_6);
+            //ilc.Emit(OpCodes.Ldc_I4_4);
+            //ilc.Emit(OpCodes.Add);
 
             ilc.Emit(OpCodes.Ret);
-            _typeBuilder.DefineMethodOverride(mb, operationDescriptor.OperationInfo);
+
+            _typeBuilder.DefineMethodOverride(mb, operationDescriptor.MethodInfo);
         }
 
         private void CreateMethodImpl(string interfaceName, MethodInfo methodDeclaration)
@@ -161,10 +169,11 @@ namespace ServiceFramework.Client
             _typeBuilder.DefineMethodOverride(mb, methodDeclaration);
         }
 
-        public static object ServiceInvoke(string operationName, ServiceDescriptor serviceDescriptor, object[] @params)
+        public static object ServiceInvoke(ServiceDescriptor serviceDescriptor, string operationName, object[] @params)
         {
             var operation = serviceDescriptor.Operations.Where(op => op.Name == operationName).Single();
-            return new ServiceInvokerBuilder().Build().Invoke(operation, @params);
+            var r = new ServiceInvokerBuilder().Build().Invoke(operation, @params);
+            return r;
         }
     }
 }

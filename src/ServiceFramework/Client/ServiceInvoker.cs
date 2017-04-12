@@ -12,7 +12,6 @@ namespace ServiceFramework.Client
 {
     class ServiceInvoker
     {
-        static string ServiceUrl;
         IServiceConfiguration _configuration;
         IServicePathManager _pathManager;
         ISerializer _serializer;
@@ -68,17 +67,12 @@ namespace ServiceFramework.Client
 
         private string GetServiceUrl(OperationDescriptor operation)
         {
-            if (ServiceUrl == null)
-            {
-                var pathPattern = _configuration.GetServicePathPattern();
-                var host = _configuration.GetServiceHost();
-                var port = _configuration.GetServicePort();
+            var pathPattern = _configuration.GetServicePathPattern();
+            var host = _configuration.GetServiceHost();
+            var port = _configuration.GetServicePort();
 
-                var path = _pathManager.GetServicePath(operation.Service.Name, operation.Name, pathPattern);
-                ServiceUrl = $"http://{host}:{port}{path}";
-            }
-
-            return ServiceUrl;
+            var path = _pathManager.GetServicePath(operation.Service.Name, operation.Name, pathPattern);
+            return $"http://{host}:{port}{path}";
         }
     }
 }

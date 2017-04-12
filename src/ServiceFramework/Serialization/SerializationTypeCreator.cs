@@ -29,10 +29,10 @@ namespace ServiceFramework.Serialization
         public SerializationTypeCreator(OperationDescriptor operationDescriptor)
         {
             _operationDescriptor = operationDescriptor;
-            _typeName = $"{operationDescriptor.Service.Name}_{operationDescriptor.OperationInfo.Name}";
+            _typeName = $"{operationDescriptor.Service.Name}_{operationDescriptor.Name}";
         }
 
-        private Dictionary<string, Type> TYPE_CACHE = new Dictionary<string, Type>();
+        private static Dictionary<string, Type> TYPE_CACHE = new Dictionary<string, Type>();
 
         public Type Create()
         {

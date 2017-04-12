@@ -11,9 +11,9 @@ namespace ServiceFramework.ServiceDescription
     {
         public string Name { get; private set; }
         public ServiceDescriptor Service { get; private set; }
-        public MethodInfo OperationInfo { get; private set; }
-        public ParameterInfo[] Parameters { get { return OperationInfo.GetParameters(); } }
-        public Type ReturnType { get { return OperationInfo.ReturnType; } }
+        public MethodInfo MethodInfo { get; private set; }
+        public ParameterInfo[] Parameters { get { return MethodInfo.GetParameters(); } }
+        public Type ReturnType { get { return MethodInfo.ReturnType; } }
         public Type ParamsSerializationType { get; private set; }
         public bool IsIterator { get; private set; }
         //public Type ReturnGenericype { get; private set; }
@@ -25,7 +25,7 @@ namespace ServiceFramework.ServiceDescription
         public OperationDescriptor(ServiceDescriptor service, MethodInfo operationInfo, OperationAttribute operationAttr)
         {
             this.Service = service;
-            this.OperationInfo = operationInfo;
+            this.MethodInfo = operationInfo;
             this.Name = operationAttr.Name ?? operationInfo.Name;
             IsIterator = operationAttr.IsIterator;
 
@@ -82,6 +82,33 @@ namespace ServiceFramework.ServiceDescription
                 ParamsSerializationType.GetProperty(Parameters[i].Name).SetValue(valueHolder, values[i]);
             }
             return valueHolder;
+        }
+
+
+    }
+
+    public static class OperationDescriptorExtension
+    {
+        public static OperationDescriptor GetByMethodInfo(this OperationDescriptor[] operations, string methodName, Type[] paramsType)
+        {
+            return operations.Where(op => op.MethodInfo.Name == methodName && op.Parameters.Select(p => p.ParameterType).ToArray().Equals2(paramsType)).SingleOrDefault();
+        }
+
+        public static bool Equals2(this Type[] types1, Type[] types2)
+        {
+            types2 = types2 ?? Type.EmptyTypes;
+            if (types1.Length != types2.Length) return false;
+
+            for(int i = 0; i < types1.Length; i++)
+            {
+                if(types1[i] != types2[i])
+                {
+                    return false;
+                }
+            }
+
+            return true;
+
         }
 
     }

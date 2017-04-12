@@ -15,7 +15,8 @@ namespace ServiceFramework.Serialization
         public object Deserialize(Type type, byte[] data)
         {
             string str = _encoding.GetString(data);
-            return JsonConvert.DeserializeObject(str, type);
+            var t = JsonConvert.DeserializeObject(str, type);
+            return t;
         }
 
         public byte[] Serialize(object obj)

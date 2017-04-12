@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Reflection;
 using System.Collections.Generic;
 
@@ -35,10 +36,14 @@ namespace ServiceFramework.ServiceDescription
             {
                 foreach (var operationAttr in operation.GetCustomAttributes<OperationAttribute>())
                 {
+                    var od = new OperationDescriptor(this, operation, operationAttr);
+                    if (operationList.Count(o => o.Name.Equals(od.Name, StringComparison.OrdinalIgnoreCase)) > 0)
+                    {
+                        throw new Exception($"Duplicate operation:{this.Name}.{od.Name}");
+                    }
                     operationList.Add(new OperationDescriptor(this, operation, operationAttr));
                 }
             }
-
             Operations = operationList.ToArray();
         }
     }

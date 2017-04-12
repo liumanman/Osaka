@@ -67,7 +67,7 @@ namespace ServiceFramework.Server
             object[] paramsValues = this.ReadParams(context, od);
 
             var service = Activator.CreateInstance(od.Service.ImplType);
-            var r = od.OperationInfo.Invoke(service, paramsValues);
+            var r = od.MethodInfo.Invoke(service, paramsValues);
 
             await WriteResponseStream(od,context.Response.Body, r);
         }
