@@ -34,11 +34,12 @@ namespace ServiceFramework.Client
             
         }
 
+        readonly static object _sync = new object();
         public Type Create()
         {
             if (!CACHE.ContainsKey(_serviceDescriptor.SchemaType))
             {
-                lock (CACHE)
+                lock (_sync)
                 {
                     if (!CACHE.ContainsKey(_serviceDescriptor.SchemaType))
                     {

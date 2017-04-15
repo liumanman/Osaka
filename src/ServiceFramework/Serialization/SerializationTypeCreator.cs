@@ -34,11 +34,12 @@ namespace ServiceFramework.Serialization
 
         private static Dictionary<string, Type> TYPE_CACHE = new Dictionary<string, Type>();
 
+        private readonly static object _sync = new object();
         public Type Create()
         {
             if (!TYPE_CACHE.ContainsKey(_typeName))
             {
-                lock (this)
+                lock (_sync)
                 {
                     if (!TYPE_CACHE.ContainsKey(_typeName))
                     {
